@@ -1,195 +1,239 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { PropertyGallery } from '@/components/shared/PropertyGallery'
 import { Button } from '@/components/ui/button'
 import { getPropertyById } from '@/lib/data'
-import { Bath, Bed, Calendar, Mail, MapPin, Phone, Square } from 'lucide-react'
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { useProperties } from '@/lib/propertyStorage'
+import { 
+  Bath, Bed, MapPin, Phone, Square, ArrowLeft, 
+  Loader2, Calendar, Share2, Heart, ShieldCheck, ExternalLink 
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 
-export default function PropertyDetailPage({ params }: { params: { id: string } }) {
-  const property = getPropertyById(params.id)
+export default function PropertyDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { properties } = useProperties()
+  const [property, setProperty] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchProperty = () => {
+      const currentId = params?.id as string
+      let found = properties.find((p) => String(p.id) === currentId)
+      if (!found) found = getPropertyById(currentId)
+      setProperty(found)
+      setLoading(false)
+    }
+
+    if (params?.id) fetchProperty()
+  }, [params.id, properties])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50/50">
+        <Loader2 className="w-12 h-12 animate-spin text-primary/60 mb-4" />
+        <p className="text-muted-foreground animate-pulse">Refining details...</p>
+      </div>
+    )
+  }
 
   if (!property) {
-    notFound()
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="bg-slate-100 p-6 rounded-full mb-6">
+          <MapPin className="w-12 h-12 text-slate-400" />
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight mb-2">Property Not Found</h2>
+        <p className="text-muted-foreground max-w-xs mb-8">
+          The property you're looking for might have been sold or moved.
+        </p>
+        <Button size="lg" onClick={() => router.push('/properties')} className="rounded-full px-8">
+          Explore Other Listings
+        </Button>
+      </div>
+    )
   }
 
-  const formatPrice = (price: number) => {
-    if (property.category === 'buy' || property.category === 'lease') {
-      return `$${price.toLocaleString()}`
-    }
-    return `$${price.toLocaleString()}/month`
-  }
+  // Create the Google Maps Search URL
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    property.location + ' ' + property.title
+  )}`
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Images and Details */}
-        <div className="lg:col-span-2">
-          {/* Gallery */}
-          <PropertyGallery images={property.images} title={property.title} />
-          {/* Videos */}
-          {property.videos && property.videos.length > 0 && (
-            <div className="mt-8 space-y-4">
-              <h2 className="text-2xl font-bold text-primary">Videos</h2>
-              {property.videos.map((vid, idx) => (
-                <video
-                  key={idx}
-                  src={vid}
-                  controls
-                  className="w-full rounded-lg bg-black"
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Property Information */}
-          <div className="mt-12 space-y-8">
-            {/* Header */}
-            <div className="border-b border-border pb-8">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h1 className="text-4xl font-bold text-primary mb-2">{property.title}</h1>
-                  <div className="flex items-center gap-2 text-lg text-muted-foreground">
-                    <MapPin className="w-5 h-5" />
-                    {property.location}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl font-bold text-accent mb-2">
-                    {formatPrice(property.price)}
-                  </div>
-                  <span className="inline-block bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm font-semibold capitalize">
-                    {property.category}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Details */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {property.bedrooms && (
-                <div className="bg-secondary p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Bed className="w-5 h-5 text-accent" />
-                    <span className="text-sm text-muted-foreground">Bedrooms</span>
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">{property.bedrooms}</p>
-                </div>
-              )}
-              {property.bathrooms && (
-                <div className="bg-secondary p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Bath className="w-5 h-5 text-accent" />
-                    <span className="text-sm text-muted-foreground">Bathrooms</span>
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">{property.bathrooms}</p>
-                </div>
-              )}
-              {property.squareFeet && (
-                <div className="bg-secondary p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Square className="w-5 h-5 text-accent" />
-                    <span className="text-sm text-muted-foreground">Square Feet</span>
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">{property.squareFeet.toLocaleString()}</p>
-                </div>
-              )}
-              <div className="bg-secondary p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-muted-foreground font-semibold capitalize">Type</span>
-                </div>
-                <p className="text-2xl font-bold text-foreground capitalize">{property.type}</p>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-4">Description</h2>
-              <p className="text-lg text-foreground leading-relaxed">{property.description}</p>
-            </div>
-
-            {/* Amenities */}
-            {property.amenities.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-bold text-primary mb-4">Amenities</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {property.amenities.map((amenity, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-secondary p-3 rounded-lg">
-                      <div className="w-2 h-2 bg-accent rounded-full"></div>
-                      <span className="text-foreground">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column - Agent & Booking */}
-        <div className="lg:col-span-1">
-          {/* Agent Card */}
-          <div className="bg-white border border-border rounded-lg p-6 sticky top-20 space-y-6">
-            <h2 className="text-2xl font-bold text-primary mb-4">Agent Information</h2>
-
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Agent</p>
-              <p className="text-xl font-semibold text-foreground">{property.agent.name}</p>
-            </div>
-
-            <div className="space-y-3">
-              <a
-                href={`tel:${property.agent.phone}`}
-                className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-muted transition-colors"
-              >
-                <Phone className="w-5 h-5 text-accent flex-shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Phone</p>
-                  <p className="font-medium text-foreground">{property.agent.phone}</p>
-                </div>
-              </a>
-
-              <a
-                href={`mailto:${property.agent.email}`}
-                className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-muted transition-colors"
-              >
-                <Mail className="w-5 h-5 text-accent flex-shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="font-medium text-foreground text-sm break-all">{property.agent.email}</p>
-                </div>
-              </a>
-            </div>
-
-            {/* Booking Buttons */}
-            <div className="border-t border-border pt-6 space-y-3">
-              <Link href={`/contact?propertyId=${property.id}`} className="block">
-                <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book Inspection
-                </Button>
-              </Link>
-              <Button variant="outline" className="w-full font-semibold">
-                <Phone className="w-4 h-4 mr-2" />
-                Call Agent
-              </Button>
-            </div>
-
-            {/* Share */}
-            <div className="border-t border-border pt-6">
-              <p className="text-sm font-medium text-foreground mb-3">Share Property</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  WhatsApp
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  Email
-                </Button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Navigation Header */}
+      <div className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            onClick={() => router.push('/properties')}
+            className="group hover:bg-transparent -ml-2"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+            <span className="font-medium">Back to listings</span>
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" className="rounded-full shadow-sm">
+              <Share2 className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="rounded-full shadow-sm text-red-500 hover:text-red-600">
+              <Heart className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          
+          {/* Left Column: Details */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="rounded-3xl overflow-hidden shadow-2xl shadow-slate-200">
+              <PropertyGallery images={property.images} title={property.title} />
+            </div>
+            
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-8">
+                <div className="space-y-2">
+                  <div className="flex gap-2 mb-3">
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-none capitalize px-3 py-1">
+                      {property.category}
+                    </Badge>
+                    {property.isFeatured && (
+                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1">
+                        Featured
+                      </Badge>
+                    )}
+                  </div>
+                  <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">{property.title}</h1>
+                  <p className="flex items-center text-slate-500 text-lg">
+                    <MapPin className="w-5 h-5 mr-2 text-primary/70" />
+                    {property.location}
+                  </p>
+                </div>
+                
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 min-w-[180px] text-center md:text-right">
+                  <p className="text-sm text-slate-500 font-medium uppercase tracking-wider mb-1">Price</p>
+                  <p className="text-3xl font-black text-primary">
+                    ${property.price?.toLocaleString()}
+                    {property.category === 'rent' && <span className="text-lg font-medium opacity-70">/mo</span>}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6 py-8 border-y border-slate-50">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="p-3 bg-primary/5 rounded-2xl"><Bed className="w-6 h-6 text-primary" /></div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-slate-900">{property.bedrooms || '0'}</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-tighter">Bedrooms</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="p-3 bg-primary/5 rounded-2xl"><Bath className="w-6 h-6 text-primary" /></div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-slate-900">{property.bathrooms || '0'}</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-tighter">Bathrooms</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="p-3 bg-primary/5 rounded-2xl"><Square className="w-6 h-6 text-primary" /></div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-slate-900">{property.squareFeet?.toLocaleString() || '0'}</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-tighter">Sq Ft</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">About this property</h2>
+                <p className="text-slate-600 leading-relaxed text-lg">
+                  {property.description}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Sticky Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-6">
+              <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-xl shadow-slate-200/50">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-xl text-slate-900">Listing Agent</h3>
+                  <ShieldCheck className="w-5 h-5 text-blue-500" />
+                </div>
+                
+                <div className="flex items-center gap-4 mb-8 p-4 bg-slate-50 rounded-2xl">
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-primary/20">
+                      {property.agent?.name?.charAt(0) || 'A'}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 leading-none mb-1">{property.agent?.name || 'Ruomax Agent'}</p>
+                    <p className="text-sm text-slate-500 font-medium">Verified Professional</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <Button size="lg" className="w-full rounded-2xl py-7 text-lg shadow-lg shadow-primary/25 hover:shadow-primary/10 transition-all" asChild>
+                    <Link href={`/contact?id=${property.id}`}>
+                      <Calendar className="w-5 h-5 mr-2" /> Book Inspection
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg" className="w-full rounded-2xl py-7 text-lg border-slate-200 hover:bg-slate-50" asChild>
+                    <a href={`tel:${property.agent?.phone}`}>
+                      <Phone className="w-5 h-5 mr-2 text-primary" /> Call Agent
+                    </a>
+                  </Button>
+                </div>
+
+                <Separator className="my-6 opacity-50" />
+                
+                <p className="text-[11px] text-center text-slate-400 px-4">
+                  By clicking "Book Inspection" you agree to our terms of service and privacy policy.
+                </p>
+              </div>
+
+              {/* Functional Map Section */}
+              <div className="group relative">
+                <a 
+                  href={googleMapsUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block overflow-hidden rounded-3xl border border-slate-100 shadow-sm transition-all hover:shadow-md"
+                >
+                  <div className="bg-slate-200 h-48 w-full relative">
+                    {/* Placeholder Background Pattern */}
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                    
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors">
+                      <div className="bg-white p-3 rounded-full shadow-lg mb-2 transition-transform group-hover:scale-110">
+                        <MapPin className="w-6 h-6 text-primary" />
+                      </div>
+                      <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1">
+                        View on Google Maps <ExternalLink className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-4">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Location</p>
+                    <p className="text-sm text-slate-700 line-clamp-1">{property.location}</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
     </div>
   )
 }
